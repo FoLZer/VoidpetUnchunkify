@@ -36,11 +36,19 @@ function parseChunk(chunk: string) {
             }
             end++;
         }
-        const function_raw = chunk.substring(start, end)
+        const function_raw = chunk.substring(start, end);
+        let body = function_raw.substring(function_raw.indexOf(":")+1);
+        const matches2 = body.match(/\(0,[^)]*\)\(\)/g);
+        if(matches2 !== null) {
+            for(const match2 of matches2) {
+                const f_call = match2.substring(3, match2.length-3);
+                body = body.replace(match2, f_call+"()");
+            }
+        }
         functions.push({
             name: function_raw.split(":")[0],
             args: function_raw.split("(")[1].split(")")[0],
-            body: function_raw.substring(function_raw.indexOf(":")+1),
+            body: body,
         });
     }
     return functions;
