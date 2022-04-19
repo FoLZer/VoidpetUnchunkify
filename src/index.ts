@@ -91,7 +91,10 @@ ${es_export ? "export default" : "module.exports ="} function load(v) {
     if(loaded[v]) {
         return loaded[v];
     } else {
-        var b = {};
+        var b = {
+            id: v,
+            exports: {}
+        };
         load.d = (obj1, obj2) => {
             b = Object.assign(obj1, obj2);
         };
@@ -99,9 +102,9 @@ ${es_export ? "export default" : "module.exports ="} function load(v) {
             throw new Error("Function "+v+" not found");
         }
         const f = func_obj[v];
-        f(null,b,load);
+        f.call(b.exports, b, b.exports, load);
         loaded[v] = b;
-        return b;
+        return b.exports;
     }
 }`;
     return code;
