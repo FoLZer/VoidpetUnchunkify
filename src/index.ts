@@ -107,9 +107,13 @@ function createCode(loadedFunctions: {[key: string]: {name: string, args: string
 export function unchunkify(raw_chunks: string[]) {
     const loadedFunctions: {[key: string]: {name: string, args: string, body: string}} = {};
     for(const chunk_raw of raw_chunks) {
-        const chunk_unpacked = parseChunk(chunk_raw);
-        for(const func of chunk_unpacked) {
-            loadedFunctions[func.name] = func;
+        try {
+            const chunk_unpacked = parseChunk(chunk_raw);
+            for(const func of chunk_unpacked) {
+                loadedFunctions[func.name] = func;
+            }
+        } catch(e) {
+            console.log("Failed to parse chunk:",e);
         }
     }
     
