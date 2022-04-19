@@ -1,3 +1,26 @@
+import mapping from "./mapping/mapping.json";
+
+
+//input is a string of code
+//(e,t,n){"use strict";var r=n(331);function l(){}function a(){}a.resetWarningCache=l,e.exports=function(){function e(e,t,n,l,a,o){if(o!==r){var u=new Error("Calling PropTypes validators directly is not supported by the `prop-types` package. Use PropTypes.checkPropTypes() to call them. Read more at http://fb.me/use-check-prop-types");throw u.name="Invariant Violation",u}}function t(){return e}e.isRequired=e;var n={array:e,bool:e,func:e,number:e,object:e,string:e,symbol:e,any:e,arrayOf:t,element:e,elementType:e,instanceOf:t,node:e,objectOf:t,oneOf:t,oneOfType:t,shape:t,exact:t,checkPropTypes:a,resetWarningCache:l};return n.PropTypes=n,n}}
+//change all variables and functions to their names in mapping object
+//mapping object is of structure {"function_name": {"returns": {"name": "new_name"}, "variables": {"name":"new_name"}, "functions": {"name":"new_name"}}}
+/* WIP
+function applyMappingToFunction(name: keyof typeof mapping, body: string) {
+    const mapping_obj = mapping[name];
+    if(mapping_obj === undefined) {
+        return body;
+    }
+    if(mapping_obj.hasOwnProperty("variables")) {
+        for(const variable of Object.keys(mapping_obj.variables)) {
+            //replace all occurrences of variable name with new name, don't change if this variable included in function inside
+            const regex = new RegExp(`\\b${variable}\\b`, "g");
+            body = body.replace(regex, mapping_obj.variables[variable]);
+        }
+    }
+}
+*/
+
 //Parse next.js chunk into array of functions
 function parseChunk(chunk: string) {
     //match all lines that have numbers and : after them
@@ -45,8 +68,10 @@ function parseChunk(chunk: string) {
                 body = body.replace(match2, f_call+"()");
             }
         }
+        const name = function_raw.split(":")[0]
+        //body = applyMapping(name, body);
         functions.push({
-            name: function_raw.split(":")[0],
+            name: name,
             args: function_raw.split("(")[1].split(")")[0],
             body: body,
         });
@@ -66,7 +91,10 @@ function createCode(loadedFunctions: {[key: string]: {name: string, args: string
         if(loaded[v]) {
             return loaded[v];
         } else {
-            var b={};
+            var b = {};
+            load.d = (obj1, obj2) => {
+                b = Object.assign(obj1, obj2);
+            }
             func_obj[v](null,b,load)
             loaded[v] = b;
             return b;
