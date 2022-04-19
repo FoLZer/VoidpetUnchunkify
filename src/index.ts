@@ -79,32 +79,31 @@ function parseChunk(chunk: string) {
     return functions;
 }
 
-function createCode(loadedFunctions: {[key: string]: {name: string, args: string, body: string}}) {
+function createCode(loadedFunctions: {[key: string]: {name: string, args: string, body: string}}, es_export: boolean) {
     let code = `var func_obj = {`;
     for(const func of Object.keys(loadedFunctions)) {
         const func_body = loadedFunctions[func].body;
         code += `\n${func}: function(${func_body.split("(")[1].split(")")[0]}) {${func_body.substring(func_body.indexOf("{")+1,func_body.length-1)}},`;
     }
     code += `\n}
-    var loaded = {};
-    module.exports = function load(v) {
-        if(loaded[v]) {
-            return loaded[v];
-        } else {
-            var b = {};
-            load.d = (obj1, obj2) => {
-                b = Object.assign(obj1, obj2);
-            }
-            func_obj[v](null,b,load)
-            loaded[v] = b;
-            return b;
+var loaded = {};
+${es_export ? "export default" : "module.exports ="} function load(v) {
+    if(loaded[v]) {
+        return loaded[v];
+    } else {
+        var b = {};
+        load.d = (obj1, obj2) => {
+            b = Object.assign(obj1, obj2);
         }
+        func_obj[v](null,b,load)
+        loaded[v] = b;
+        return b;
     }
-    `;
+}`;
     return code;
 }
 
-export function unchunkify(raw_chunks: string[]) {
+export function unchunkify(raw_chunks: string[], es_export: boolean) {
     const loadedFunctions: {[key: string]: {name: string, args: string, body: string}} = {};
     for(const chunk_raw of raw_chunks) {
         try {
@@ -117,5 +116,5 @@ export function unchunkify(raw_chunks: string[]) {
         }
     }
     
-    return createCode(loadedFunctions);
+    return createCode(loadedFunctions, es_export);
 }
