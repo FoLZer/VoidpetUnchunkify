@@ -94,8 +94,12 @@ ${es_export ? "export default" : "module.exports ="} function load(v) {
         var b = {};
         load.d = (obj1, obj2) => {
             b = Object.assign(obj1, obj2);
+        };
+        if(!func_obj.hasOwnProperty(v)) {
+            throw new Error("Function "+v+" not found");
         }
-        func_obj[v](null,b,load)
+        const f = func_obj[v];
+        f(null,b,load);
         loaded[v] = b;
         return b;
     }
