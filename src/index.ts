@@ -65,7 +65,7 @@ function parseChunk(chunk: string) {
         if(matches2 !== null) {
             for(const match2 of matches2) {
                 const f_call = match2.substring(3, match2.length-3);
-                body = body.replace(match2, f_call+"()");
+                body = body.replace(match2, " "+f_call+"()");
             }
         }
         const name = function_raw.split(":")[0]
