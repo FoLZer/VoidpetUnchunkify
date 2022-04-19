@@ -104,7 +104,7 @@ function createCode(loadedFunctions: {[key: string]: {name: string, args: string
     return code;
 }
 
-export default function parse(raw_chunks: string[]) {
+export function unchunkify(raw_chunks: string[]) {
     const loadedFunctions: {[key: string]: {name: string, args: string, body: string}} = {};
     for(const chunk_raw of raw_chunks) {
         const chunk_unpacked = parseChunk(chunk_raw);
