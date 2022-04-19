@@ -96,7 +96,7 @@ ${es_export ? "export default" : "module.exports ="} function load(v) {
             exports: {}
         };
         load.d = (obj1, obj2) => {
-            b = Object.assign(obj1, obj2);
+            b.exports = Object.assign(obj1, obj2);
         };
         if(!func_obj.hasOwnProperty(v)) {
             throw new Error("Function "+v+" not found");
