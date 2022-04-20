@@ -1,15 +1,5 @@
 {
     "8487": {
-        "returns": {
-            "h": "h"
-        },
-        "variables": {
-            "r": "r"
-        },
-        "functions": {
-            "l": {
-                
-            }
-        }
+        "h": "TEST"
     }
 }
