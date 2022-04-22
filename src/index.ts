@@ -100,7 +100,7 @@ function createCode(loadedFunctions: {[key: string]: {name: string, args: string
 var loaded = {};
 ${es_export ? "export default" : "module.exports ="} function load(v) {
     if(loaded[v]) {
-        return loaded[v];
+        return loaded[v].exports;
     } else {
         var b = {
             id: v,
