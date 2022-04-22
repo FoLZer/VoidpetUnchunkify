@@ -1,4 +1,4 @@
-import mapping from "./mapping/mapping";
+import mapping from "./mapping/mapping.js";
 import ts_morph, { Project } from "ts-morph";
 
 async function applyMapping(name: keyof typeof mapping, body: string): Promise<string> {
