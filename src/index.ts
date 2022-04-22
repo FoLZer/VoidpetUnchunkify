@@ -1,46 +1,33 @@
-import mapping from "./mapping/mapping.js";
+import mapping from "./mapping/mapping";
 import ts_morph, { Project } from "ts-morph";
-import tmp from "tmp";
 
 async function applyMapping(name: keyof typeof mapping, body: string): Promise<string> {
     const mapping_obj_source = mapping[name];
     if(!mapping_obj_source) {
         return body;
     }
-
-    return new Promise((resolve, reject) => {
-        tmp.tmpName(async (err, path) =>{
-            if(err) {
-                reject(err);
-            }
-            try {
-                const project = new Project();
-                const sourceFile = project.createSourceFile(path+".js", body);
-                sourceFile.getFunctionOrThrow("").getBodyOrThrow().forEachChild((node) => {
-                    const kind = node.getKind();
-                    if(kind === ts_morph.SyntaxKind.VariableStatement) {
-                        const var_stmt = node.asKindOrThrow(ts_morph.SyntaxKind.VariableStatement);
-                        const var_decl = var_stmt.getDeclarations();
-                        for(const decl of var_decl) {
-                            const name = decl.getName();
-                            if(mapping_obj_source.hasOwnProperty(name)) {
-                                const new_name = mapping_obj_source[name as keyof typeof mapping_obj_source];
-                                if(new_name) {
-                                    decl.getNameNode().replaceWithText(new_name);
-                                }
-                            }
-                            decl.forget();
-                        }
-                        var_stmt.forget();
+    const project = new Project();
+    const sourceFile = project.createSourceFile("f"+name+"-"+Math.round(Math.random()*10000)+".js", body);
+    sourceFile.getFunctionOrThrow("").getBodyOrThrow().forEachChild((node) => {
+        const kind = node.getKind();
+        if(kind === ts_morph.SyntaxKind.VariableStatement) {
+            const var_stmt = node.asKindOrThrow(ts_morph.SyntaxKind.VariableStatement);
+            const var_decl = var_stmt.getDeclarations();
+            for(const decl of var_decl) {
+                const name = decl.getName();
+                if(mapping_obj_source.hasOwnProperty(name)) {
+                    const new_name = mapping_obj_source[name as keyof typeof mapping_obj_source];
+                    if(new_name) {
+                        decl.getNameNode().replaceWithText(new_name);
                     }
-                    node.forget();
-                })
-                resolve(sourceFile.compilerNode.getFullText());
-            } catch(e) {
-                reject(e);
+                }
+                decl.forget();
             }
-        });
+            var_stmt.forget();
+        }
+        node.forget();
     })
+    return sourceFile.compilerNode.getFullText();
 }
 
 //Parse next.js chunk into array of functions
