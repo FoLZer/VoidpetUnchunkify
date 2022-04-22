@@ -106,7 +106,15 @@ ${es_export ? "export default" : "module.exports ="} function load(v) {
             id: v,
             exports: {}
         };
-        load.d = (obj1, obj2) => {
+        load.d = function(obj1, obj2) {
+            for(var key in obj2) {
+                if(Object.prototype.hasOwnProperty.call(obj2, key) && !Object.prototype.hasOwnProperty.call(obj1, key)) {
+                    Object.defineProperty(obj1, key, {
+                        enumerable: true,
+                        get: obj2[key]
+                    });
+                }
+            }
             b.exports = Object.assign(obj1, obj2);
         };
         if(!func_obj.hasOwnProperty(v)) {
