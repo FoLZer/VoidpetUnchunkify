@@ -1,23 +1,46 @@
-import mapping from "./mapping/mapping.json";
-import ts from "typescript";
+import mapping from "./mapping/mapping.js";
+import ts_morph, { Project } from "ts-morph";
+import tmp from "tmp";
 
-function applyMapping(name: keyof typeof mapping, body: string) {
-    const mapping_obj = mapping[name];
-    if(!mapping_obj) {
+async function applyMapping(name: keyof typeof mapping, body: string): Promise<string> {
+    const mapping_obj_source = mapping[name];
+    if(!mapping_obj_source) {
         return body;
     }
-    const sourceFile = ts.createSourceFile("", body, ts.ScriptTarget.ES2022, true);
-    //change all variable names to ones provided in mapping
-    const visitor = (node: ts.Node): ts.Node | undefined => {
-        if(ts.isIdentifier(node)) {
-            if(mapping_obj.hasOwnProperty(node.text)) {
-                return ts.factory.createIdentifier(mapping_obj[node.text as keyof typeof mapping_obj]);
+
+    return new Promise((resolve, reject) => {
+        tmp.tmpName(async (err, path) =>{
+            if(err) {
+                reject(err);
             }
-        }
-        return ts.forEachChild(node, visitor);
-    };
-    const newSourceFile = ts.visitNode(sourceFile, visitor);
-    return newSourceFile.getFullText();
+            try {
+                const project = new Project();
+                const sourceFile = project.createSourceFile(path+".js", body);
+                sourceFile.getFunctionOrThrow("").getBodyOrThrow().forEachChild((node) => {
+                    const kind = node.getKind();
+                    if(kind === ts_morph.SyntaxKind.VariableStatement) {
+                        const var_stmt = node.asKindOrThrow(ts_morph.SyntaxKind.VariableStatement);
+                        const var_decl = var_stmt.getDeclarations();
+                        for(const decl of var_decl) {
+                            const name = decl.getName();
+                            if(mapping_obj_source.hasOwnProperty(name)) {
+                                const new_name = mapping_obj_source[name as keyof typeof mapping_obj_source];
+                                if(new_name) {
+                                    decl.getNameNode().replaceWithText(new_name);
+                                }
+                            }
+                            decl.forget();
+                        }
+                        var_stmt.forget();
+                    }
+                    node.forget();
+                })
+                resolve(sourceFile.compilerNode.getFullText());
+            } catch(e) {
+                reject(e);
+            }
+        });
+    })
 }
 
 //Parse next.js chunk into array of functions
@@ -67,15 +90,17 @@ function parseChunk(chunk: string) {
                 body = body.replace(match2, " "+f_call+"()");
             }
         }
-        const name = function_raw.split(":")[0]
-        body = applyMapping(name as any, body);
-        functions.push({
-            name: name,
-            args: function_raw.split("(")[1].split(")")[0],
-            body: body,
+        const name = function_raw.split(":")[0];
+        const promise = applyMapping(name as any, body).then((body) => {
+            return {
+                name: name,
+                args: function_raw.split("(")[1].split(")")[0],
+                body: body,
+            }
         });
+        functions.push(promise);
     }
-    return functions;
+    return Promise.all(functions);
 }
 
 function createCode(loadedFunctions: {[key: string]: {name: string, args: string, body: string}}, es_export: boolean) {
@@ -109,18 +134,19 @@ ${es_export ? "export default" : "module.exports ="} function load(v) {
     return code;
 }
 
-export function unchunkify(raw_chunks: string[], es_export: boolean) {
+export async function unchunkify(raw_chunks: string[], es_export: boolean) {
+    const errors = [];
     const loadedFunctions: {[key: string]: {name: string, args: string, body: string}} = {};
     for(const chunk_raw of raw_chunks) {
         try {
-            const chunk_unpacked = parseChunk(chunk_raw);
+            const chunk_unpacked = await parseChunk(chunk_raw);
             for(const func of chunk_unpacked) {
                 loadedFunctions[func.name] = func;
             }
         } catch(e) {
-            console.log("Failed to parse chunk:",e);
+            errors.push(e);
         }
     }
     
-    return createCode(loadedFunctions, es_export);
+    return {code: createCode(loadedFunctions, es_export), errors};
 }
