@@ -1,33 +1,14 @@
-import mapping from "./mapping/mapping.js";
-import ts_morph, { Project } from "ts-morph";
+import mappings from "./mapping/mapping.js";
+import jscodeshift from "jscodeshift";
 
-async function applyMapping(name: keyof typeof mapping, body: string): Promise<string> {
-    const mapping_obj_source = mapping[name];
-    if(!mapping_obj_source) {
-        return body;
+function applyMapping(mapping: {[k: string]: any}, ast: jscodeshift.Collection<any>) {
+    //change all variable names to new names
+    for(const prev_var_name of Object.keys(mapping.variables)) {
+        const new_var_name = mapping[prev_var_name as keyof typeof mappings];
+        ast.findVariableDeclarators(prev_var_name).at(0).renameTo(new_var_name);
     }
-    const project = new Project();
-    const sourceFile = project.createSourceFile("f"+name+"-"+Math.round(Math.random()*10000)+".js", body);
-    sourceFile.getFunctionOrThrow("").getBodyOrThrow().forEachChild((node) => {
-        const kind = node.getKind();
-        if(kind === ts_morph.SyntaxKind.VariableStatement) {
-            const var_stmt = node.asKindOrThrow(ts_morph.SyntaxKind.VariableStatement);
-            const var_decl = var_stmt.getDeclarations();
-            for(const decl of var_decl) {
-                const name = decl.getName();
-                if(mapping_obj_source.hasOwnProperty(name)) {
-                    const new_name = mapping_obj_source[name as keyof typeof mapping_obj_source];
-                    if(new_name) {
-                        decl.getNameNode().replaceWithText(new_name);
-                    }
-                }
-                decl.forget();
-            }
-            var_stmt.forget();
-        }
-        node.forget();
-    })
-    return sourceFile.compilerNode.getFullText();
+    
+    return ast;
 }
 
 //Parse next.js chunk into array of functions
@@ -78,16 +59,18 @@ function parseChunk(chunk: string) {
             }
         }
         const name = function_raw.split(":")[0];
-        const promise = applyMapping(name as any, body).then((body) => {
-            return {
-                name: name,
-                args: function_raw.split("(")[1].split(")")[0],
-                body: body,
-            }
+        if(mappings.hasOwnProperty(name)) {
+            let ast = jscodeshift(body.replace("function", "function $REPLACE$"));
+            ast = applyMapping(mappings[name as keyof typeof mappings], ast);
+            body = ast.toString().replace("function $REPLACE$", "function");
+        }
+        functions.push({
+            name: name,
+            args: function_raw.split("(")[1].split(")")[0],
+            body: body,
         });
-        functions.push(promise);
     }
-    return Promise.all(functions);
+    return functions;
 }
 
 function createCode(loadedFunctions: {[key: string]: {name: string, args: string, body: string}}, es_export: boolean) {
