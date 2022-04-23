@@ -1,11 +1,25 @@
 import mappings from "./mapping/mapping.js";
 import jscodeshift from "jscodeshift";
 
-function applyMapping(mapping: {[k: string]: any}, ast: jscodeshift.Collection<any>) {
-    //change all variable names to new names
-    for(const prev_var_name of Object.keys(mapping.variables)) {
-        const new_var_name = mapping[prev_var_name as keyof typeof mappings];
-        ast.findVariableDeclarators(prev_var_name).at(0).renameTo(new_var_name);
+import register from "./jscodeshiftMethods.js";
+register();
+
+function applyMapping(ast: jscodeshift.Collection<any>, mapping: {[k: string]: any}) {
+    if(mapping.hasOwnProperty("variables")) {
+        for(const prev_var_name of Object.keys(mapping.variables)) {
+            const new_var_name = mapping.variables[prev_var_name as keyof typeof mappings];
+            ast.findVariableDeclarators(prev_var_name).at(0).renameTo(new_var_name);
+        }
+    }
+
+    if(mapping.hasOwnProperty("function_declarations")) {
+        for(const prev_func_name of Object.keys(mapping.function_declarations)) {
+            const new_func = mapping.function_declarations[prev_func_name as keyof typeof mappings];
+            const func_decl = ast.find(jscodeshift.FunctionDeclaration, {id: {name: prev_func_name}}).at(0);
+            func_decl.get("id");
+            func_decl.renameTo(new_func.name);
+            applyMapping(func_decl, mapping.function_declarations[prev_func_name as keyof typeof mappings]);
+        }
     }
     
     return ast;
@@ -61,8 +75,8 @@ function parseChunk(chunk: string) {
         const name = function_raw.split(":")[0];
         if(mappings.hasOwnProperty(name)) {
             let ast = jscodeshift(body.replace("function", "function $REPLACE$"));
-            ast = applyMapping(mappings[name as keyof typeof mappings], ast);
-            body = ast.toString().replace("function $REPLACE$", "function");
+            ast = applyMapping(ast, mappings[name as keyof typeof mappings]);
+            body = ast.toSource().replace("function $REPLACE$", "function");
         }
         functions.push({
             name: name,
