@@ -1,4 +1,5 @@
-import mappings from "./mapping/mapping.js";
+import fs from "fs";
+const mappings = JSON.parse(fs.readFileSync("./mapping.json", "utf8")) as {[k: string]: any};
 import jscodeshift from "jscodeshift";
 
 import register from "./jscodeshiftMethods.js";
@@ -12,13 +13,13 @@ function applyMapping(ast: jscodeshift.Collection<any>, mapping: {[k: string]: a
         }
     }
 
-    if(mapping.hasOwnProperty("function_declarations")) {
-        for(const prev_func_name of Object.keys(mapping.function_declarations)) {
-            const new_func = mapping.function_declarations[prev_func_name as keyof typeof mappings];
+    if(mapping.hasOwnProperty("functions")) {
+        for(const prev_func_name of Object.keys(mapping.functions)) {
+            const new_func = mapping.functions[prev_func_name as keyof typeof mappings];
             const func_decl = ast.find(jscodeshift.FunctionDeclaration, {id: {name: prev_func_name}}).at(0);
             func_decl.get("id");
             func_decl.renameTo(new_func.name);
-            applyMapping(func_decl, mapping.function_declarations[prev_func_name as keyof typeof mappings]);
+            applyMapping(func_decl, mapping.functions[prev_func_name as keyof typeof mappings]);
         }
     }
 
