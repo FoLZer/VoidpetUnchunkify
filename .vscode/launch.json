@@ -11,7 +11,7 @@
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "program": "${workspaceFolder}\\src\\test.ts",
+            "program": "${workspaceFolder}\\src\\generateMapping.ts",
             "outDir": "${workspaceFolder}\\out",
             "preLaunchTask": "compile",
             "externalConsole": false,

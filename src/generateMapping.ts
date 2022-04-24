@@ -67,9 +67,8 @@ for(const chunk of Object.values(s) as string[]) {
                 m.functions[name] = getMapping(jscodeshift(path));
                 m.functions[name]["name"] = name;
             });
-            const p = (ast.get("params") as jscodeshift.ASTPath<jscodeshift.FunctionDeclaration>).value;
-            //@ts-ignore
-            p.forEach((node: any) => {
+            const p = ast.get("params").value as jscodeshift.ASTPath<jscodeshift.Identifier>[];
+            p.forEach((node: jscodeshift.ASTPath<jscodeshift.Identifier>) => {
                 if(!m.hasOwnProperty("args")) {
                     m["args"] = {};
                 }
@@ -79,8 +78,44 @@ for(const chunk of Object.values(s) as string[]) {
             return m;
         }
         const ast = jscodeshift(body.replace("function", "function $REPLACE$")).find(jscodeshift.FunctionDeclaration);
-        //@ts-ignore
         mapping[name] = getMapping(ast);
+        function a() {
+            if(!mapping[name].hasOwnProperty("args")) {
+                return;
+            }
+            const retArg = Object.keys(mapping[name].args)[2];
+            if(retArg === undefined) {
+                return;
+            }
+            const rootScope = ast.get("body").scope;
+            ast.find(jscodeshift.CallExpression, {
+                callee: {
+                    type: 'MemberExpression',
+                    object: { type: 'Identifier', name: mapping[name].args[retArg] },
+                    property: { name: "d" }
+                },
+            }).filter(path => {
+                let scope = path.scope;
+                while (scope && scope !== rootScope) {
+                    if (scope.declares(mapping[name].args[retArg])) {
+                        return false;
+                    }
+                    scope = scope.parent;
+                }
+                return true;
+            })
+            .forEach(path => {
+                const args = path.get("arguments").value[1].properties;
+                args.forEach((node: jscodeshift.Property) => {
+                    if(!mapping[name].hasOwnProperty("returns")) {
+                        mapping[name]["returns"] = {};
+                    }
+                    const retName = (node.key as jscodeshift.Identifier).name;
+                    mapping[name]["returns"][retName] = retName;
+                });
+            });
+        };
+        a();
     }
 }
 fs.writeFileSync("mapping.json", JSON.stringify(mapping, null, 4));
